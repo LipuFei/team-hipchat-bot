@@ -40,47 +40,47 @@ class HipChatApi(object):
         if failure_callback is not None:
             d.addErrback(failure_callback)
 
-    def send_room_notification(self, room_name, username, message, is_html=False, notify=False, color="yellow"):
-        url = self.ROOM_NOTIFICATION_URL % {"room_id_or_name": room_name}
-        data = {'from': username,
-                'message_format': 'html' if is_html else 'text',
-                'color': color,
-                'notify': notify,
-                'message': cgi.escape(message),
+    def send_room_notification(self, room_name, username, message, is_html=False, notify=False, color=u"yellow"):
+        url = self.ROOM_NOTIFICATION_URL % {u"room_id_or_name": room_name}
+        data = {u'from': username,
+                u'message_format': u'html' if is_html else u'text',
+                u'color': color,
+                u'notify': notify,
+                u'message': cgi.escape(message),
                 }
-        self._send_request('POST', url, payload=json.dumps(data))
+        self._send_request(u'POST', url, payload=json.dumps(data))
 
     def set_room_topic(self, room_name, topic):
-        url = self.ROOM_TOPIC_URL % {"room_id_or_name": room_name}
-        data = {'topic': topic}
-        self._send_request('PUT', url, payload=json.dumps(data))
+        url = self.ROOM_TOPIC_URL % {u"room_id_or_name": room_name}
+        data = {u'topic': topic}
+        self._send_request(u'PUT', url, payload=json.dumps(data))
 
     def view_room_history(self, room_name, max_results=100, recent=True, include_deleted=False,
                           not_before=None, timezone="UTZ", callback=None):
-        url = self.ROOM_HISTORY_URL % {"room_id_or_name": room_name}
+        url = self.ROOM_HISTORY_URL % {u"room_id_or_name": room_name}
         if recent:
-            url += "/latest"
-        data = {'max-results': max_results,
-                'timezone': timezone,
-                'include_deleted': include_deleted,
+            url += u"/latest"
+        data = {u'max-results': max_results,
+                u'timezone': timezone,
+                u'include_deleted': include_deleted,
                 }
         if not_before is not None:
-            data['not-before'] = not_before
+            data[u'not-before'] = not_before
         self._callback = callback
-        self._send_request('GET', url, payload=json.dumps(data),
+        self._send_request(u'GET', url, payload=json.dumps(data),
                            success_callback=self._on_view_room_history_success,
                            failure_callback=self._on_view_room_history_failed)
 
     def _on_view_room_history_success(self, data):
-        self._logger.info("successfully retrieved history")
+        self._logger.info(u"successfully retrieved history")
         self._callback(data)
 
     def _on_view_room_history_failed(self, response):
-        self._logger.error("failed to retrieve history: %s", response)
+        self._logger.error(u"failed to retrieve history: %s", response)
 
     def reply_to_message(self, room_name, parent_message_id, message):
-        url = self.ROOM_REPLY_URL % {"room_id_or_name": room_name}
-        data = {'parentMessageId': parent_message_id,
-                'message': message,
+        url = self.ROOM_REPLY_URL % {u"room_id_or_name": room_name}
+        data = {u'parentMessageId': parent_message_id,
+                u'message': message,
                 }
-        self._send_request('POST', url, payload=json.dumps(data))
+        self._send_request(u'POST', url, payload=json.dumps(data))

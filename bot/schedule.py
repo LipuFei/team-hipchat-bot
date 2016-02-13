@@ -74,8 +74,8 @@ class Schedule(object):
 
 
 def to_human_readable_time(seconds):
-    attrs = ['years', 'months', 'days', 'hours', 'minutes', 'seconds']
+    attrs = [u'years', u'months', u'days', u'hours', u'minutes', u'seconds']
     delta = relativedelta(seconds=seconds)
-    human_readable = ['%d %s' % (getattr(delta, attr), getattr(delta, attr) > 1 and attr or attr[:-1])
+    human_readable = [u'%d %s' % (getattr(delta, attr), getattr(delta, attr) > 1 and attr or attr[:-1])
                       for attr in attrs if getattr(delta, attr)]
     return ' '.join(human_readable)

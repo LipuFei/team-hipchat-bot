@@ -3,7 +3,7 @@ import logging
 import os
 import time
 
-WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI"]
+WEEKDAYS = [u"MON", u"TUE", u"WED", u"THU", u"FRI"]
 
 
 class DaysOffParser(object):
@@ -21,38 +21,37 @@ class DaysOffParser(object):
         """
         file_name = file_name if file_name is not None else self._file_name
 
-        self._logger.debug("loading people availability list from %s", file_name)
+        self._logger.debug(u"loading people availability list from %s", file_name)
         lines = []
         if os.path.exists(file_name):
             with open(file_name, 'rb') as f:
-                lines = [l.decode('utf-8') for l in f.readlines()]
+                lines = [l.decode('utf-8').strip() for l in f.readlines()]
 
         people_list = []
         person = None
         for l in lines:
-            l = l.strip()
-            if l.startswith('[') and l.endswith(']'):
+            if l.startswith(u'[') and l.endswith(u']'):
                 if person is not None:
                     people_list.append(person)
-                person = {'name': l.strip('[]'),
-                          'not_available_dates': []}
-            elif l.startswith('#') or len(l) == 0:
+                person = {u'name': l.strip(u'[]'),
+                          u'not_available_dates': []}
+            elif l.startswith(u'#') or len(l) == 0:
                 continue
             else:
                 if l.upper() in WEEKDAYS:
-                    person['not_available_dates'].append(l.upper())
+                    person[u'not_available_dates'].append(l.upper())
                 else:
-                    year, month, day = [int(v) for v in l.split('-')]
-                    person['not_available_dates'].append(datetime.date(year, month, day))
+                    year, month, day = [int(v) for v in l.split(u'-')]
+                    person[u'not_available_dates'].append(datetime.date(year, month, day))
 
         if person is not None:
             people_list.append(person)
 
-        got_names = [p['name'] for p in people_list]
+        got_names = [p[u'name'] for p in people_list]
         non_existing_names = [n for n in self._team_member_list if n not in got_names]
         for name in non_existing_names:
-            people_list.append({'name': name,
-                                'not_available_dates': []})
+            people_list.append({u'name': name,
+                                u'not_available_dates': []})
 
         self._people_list = people_list
         self.save(file_name)
@@ -66,16 +65,16 @@ class DaysOffParser(object):
 
         file_name = file_name if file_name is not None else self._file_name
 
-        self._logger.debug("saving people availability list to %s", file_name)
+        self._logger.debug(u"saving people availability list to %s", file_name)
         lines = []
         for person in self._people_list:
-            lines.append("[%s]" % person['name'])
-            for d in person['not_available_dates']:
+            lines.append(u"[%s]" % person[u'name'])
+            for d in person[u'not_available_dates']:
                 if isinstance(d, basestring):
                     lines.append(d.upper())
                 else:
-                    lines.append(d.strftime("%Y-%m-%d"))
-            lines.append("")
+                    lines.append(d.strftime(u"%Y-%m-%d"))
+            lines.append(u"")
 
         lines = [(l + os.linesep).encode('utf-8') for l in lines]
         with open(file_name, 'wb') as f:
@@ -88,11 +87,11 @@ class DaysOffParser(object):
         current_date = datetime.date.fromtimestamp(time.time())
         for person in self._people_list:
             new_list = []
-            for d in person['not_available_dates']:
+            for d in person[u'not_available_dates']:
                 if isinstance(d, datetime.date) and d < current_date:
                     continue
                 new_list.append(d)
-            person['not_available_dates'] = new_list
+            person[u'not_available_dates'] = new_list
 
     def add(self, name, date_list):
         """
@@ -104,19 +103,20 @@ class DaysOffParser(object):
         has_change = False
         found_person = False
         for person in self._people_list:
-            if person['name'] == name:
+            if person[u'name'] == name:
                 for nd in date_list:
                     if isinstance(nd, basestring):
                         nd = nd.upper()
-                    if nd not in person['not_available_dates']:
-                        person['not_available_dates'].append(nd)
+                    if nd not in person[u'not_available_dates']:
+                        person[u'not_available_dates'].append(nd)
                         has_change = True
                 found_person = True
                 break
 
         # append if this person doesn't exist
         if not found_person:
-            person = {'name': name, 'not_available_dates': date_list}
+            person = {u'name': name,
+                      u'not_available_dates': date_list}
             self._people_list.append(person)
             has_change = True
 
@@ -131,12 +131,12 @@ class DaysOffParser(object):
         """
         has_change = False
         for person in self._people_list:
-            if person['name'] == name:
+            if person[u'name'] == name:
                 for nd in date_list:
                     if isinstance(nd, basestring):
                         nd = nd.upper()
-                    if nd in person['not_available_dates']:
-                        person['not_available_dates'].remove(nd)
+                    if nd in person[u'not_available_dates']:
+                        person[u'not_available_dates'].remove(nd)
                         has_change = True
         return has_change
 
@@ -148,20 +148,20 @@ class DaysOffParser(object):
         """
         days_off = None
         for person in self._people_list:
-            if person['name'] == name:
-                days_off = person['not_available_dates']
+            if person[u'name'] == name:
+                days_off = person[u'not_available_dates']
         return days_off
 
     def get_next_available_person(self, current_idx, date):
         idx = (current_idx + 1) % len(self._people_list)
         while idx != current_idx:
             person = self._people_list[idx]
-            if self.check_availability(person['name'], date):
-                return idx, person['name']
+            if self.check_availability(person[u'name'], date):
+                return idx, person[u'name']
             idx = (current_idx + 1) % len(self._people_list)
 
         idx = (current_idx + 1) % len(self._people_list)
-        return idx, self._people_list[idx]['name']
+        return idx, self._people_list[idx][u'name']
 
     def check_availability(self, name, date):
         """
@@ -174,9 +174,9 @@ class DaysOffParser(object):
 
         is_available = None
         for person in self._people_list:
-            if person['name'] == name:
+            if person[u'name'] == name:
                 is_available = True
-                for d in person['not_available_dates']:
+                for d in person[u'not_available_dates']:
                     # convert weekday to date
                     if isinstance(d, basestring):
                         is_available = WEEKDAYS.index(d) != date.weekday()
@@ -187,6 +187,6 @@ class DaysOffParser(object):
                         break
                 break
         if is_available is None:
-            raise RuntimeError("name[%s] not found" % name)
+            raise RuntimeError(u"name[%s] not found" % name)
 
         return is_available

@@ -74,11 +74,11 @@ class HipchatBot(muc.MUCClient):
         muc.Room(self.room_jid, self.nickname)
 
         if not quietly and not self._stfu(user_nick):
-            msg = '@all ' + msg
+            msg = u'@all ' + msg
 
         if not self.connected:
             log.msg(u'Not connected yet, ignoring msg: %s' % msg)
-        self.groupChat(self.room_jid, msg)
+        self.groupChat(self.room_jid, msg.decode('utf-8'))
 
     def userJoinedRoom(self, room, user):
         pass
@@ -87,20 +87,21 @@ class HipchatBot(muc.MUCClient):
         pass
 
     def receivedGroupChat(self, room, user, message):
-        CMDS = ['!HELP', '!IM_BACK', '!IM_OFF', '!SHOW_MY_DAYS', '!SHOW_NEXT_SHERIFF', '!NEXT_SHERIFF']
+        CMDS = [u'!HELP', u'!IM_BACK', u'!IM_OFF', u'!SHOW_MY_DAYS', u'!SHOW_NEXT_SHERIFF', u'!NEXT_SHERIFF']
         # value error means it was a one word body
         msg = message.body
         if not msg:
             return
+        msg = msg.decode('utf-8')
 
-        cmd = msg.split(' ')[0]
+        cmd = msg.split(u' ')[0]
         if cmd in CMDS and user.nick in self.team_members:
-            method = getattr(self, 'cmd_' + cmd[1:].lower(), None)
+            method = getattr(self, u'cmd_' + cmd[1:].lower(), None)
             if method:
                 method(room, user.nick, message)
 
     def cmd_help(self, room, user_nick, message):
-        msg = """
+        msg = u"""
 Available commands (all commands start with '!'):
   !HELP: show this message.
   !IM_OFF  <args> : add your days off. Format: yyyy-mm-dd (2016-01-31) or "mon", "tue", etc. (non-case-sensitive)
@@ -109,7 +110,7 @@ Available commands (all commands start with '!'):
   !SHOW_NEXT_SHERIFF : show the next sheriff.
   !NEXT_SHERIFF   : switch to the next sheriff. (in case that the current sheriff is not correct)
 """
-        self.groupChat(self.room_jid, "/code " + msg)
+        self.groupChat(self.room_jid, "/code " + msg.decode('utf-8'))
 
     def cmd_im_back(self, room, user_nick, message):
         args = message.body.split(' ')
@@ -121,11 +122,11 @@ Available commands (all commands start with '!'):
         date_list = self.bot.days_off_parser.get_my_days_off(user_nick)
         if date_list:
             days = convert_date_list_to_strings(date_list)
-            msg = "%s has the following days off: [%s]" % (user_nick, ", ".join(days))
+            msg = u"%s has the following days off: [%s]" % (user_nick, u", ".join(days))
         else:
-            msg = "%s doesn't have any days off registered" % user_nick
+            msg = u"%s doesn't have any days off registered" % user_nick
 
-        self.groupChat(self.room_jid, '/code > ' + msg)
+        self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
 
     def cmd_im_off(self, room, user_nick, message):
         args = message.body.split(' ')
@@ -137,29 +138,29 @@ Available commands (all commands start with '!'):
         date_list = self.bot.days_off_parser.get_my_days_off(user_nick)
         if date_list:
             days = convert_date_list_to_strings(date_list)
-            msg = "%s has the following days off: [%s]" % (user_nick, ", ".join(days))
+            msg = u"%s has the following days off: [%s]" % (user_nick, u", ".join(days))
         else:
-            msg = "%s doesn't have any days off registered" % user_nick
+            msg = u"%s doesn't have any days off registered" % user_nick
 
-        self.groupChat(self.room_jid, '/code > ' + msg)
+        self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
 
     def cmd_show_my_days(self, room, user_nick, message):
         date_list = self.bot.days_off_parser.get_my_days_off(user_nick)
         if date_list:
             days = convert_date_list_to_strings(date_list)
-            msg = "%s has the following days off: [%s]" % (user_nick, ", ".join(days))
+            msg = u"%s has the following days off: [%s]" % (user_nick, u", ".join(days))
         else:
-            msg = "%s doesn't have any days off registered" % user_nick
+            msg = u"%s doesn't have any days off registered" % user_nick
 
-        self.groupChat(self.room_jid, '/code > ' + msg)
+        self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
 
     def cmd_show_next_sheriff(self, room, user_nick, message):
-        msg = "Next sheriff is: %s" % self.bot.sheriff_schedule.get_next_available_person()[1]
-        self.groupChat(self.room_jid, '/code > ' + msg)
+        msg = u"Next sheriff is: %s" % self.bot.sheriff_schedule.get_next_available_person()[1]
+        self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
 
     def cmd_next_sheriff(self, room, user_nick, message):
-        msg = "Switching to the next sheriff: %s" % self.bot.sheriff_schedule.get_next_available_person()[1]
-        self.groupChat(self.room_jid, '/code > ' + msg)
+        msg = u"Switching to the next sheriff: %s" % self.bot.sheriff_schedule.get_next_available_person()[1]
+        self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
 
         self.bot.sheriff_schedule.switch_to_next_person()
 
@@ -210,7 +211,7 @@ def sanitize_dates(date_string_list):
             continue
         if RE_DATE.match(d):
             try:
-                year, month, day = [int(v) for v in d.split('-')]
+                year, month, day = [int(v) for v in d.split(u'-')]
                 valid_args.append(datetime.date(year, month, day))
             except:
                 invalid_args.append(d)
