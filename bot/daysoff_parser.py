@@ -1,6 +1,7 @@
 import datetime
 import logging
 import os
+import time
 
 WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI"]
 
@@ -61,6 +62,8 @@ class DaysOffParser(object):
         Saves the people availability list to the given file.
         :param file_name: The file name.
         """
+        self._automatic_clean()
+
         file_name = file_name if file_name is not None else self._file_name
 
         self._logger.debug("saving people availability list to %s", file_name)
@@ -77,6 +80,19 @@ class DaysOffParser(object):
         lines = [(l + os.linesep).encode('utf-8') for l in lines]
         with open(file_name, 'wb') as f:
             f.writelines(lines)
+
+    def _automatic_clean(self):
+        """
+        Automatically cleans up the past dates.
+        """
+        current_date = datetime.date.fromtimestamp(time.time())
+        for person in self._people_list:
+            new_list = []
+            for d in person['not_available_dates']:
+                if isinstance(d, datetime.date) and d < current_date:
+                    continue
+                new_list.append(d)
+            person['not_available_dates'] = new_list
 
     def add(self, name, date_list):
         """
@@ -154,6 +170,8 @@ class DaysOffParser(object):
         :param date: The given date.
         :return: True or False.
         """
+        self.save()
+
         is_available = None
         for person in self._people_list:
             if person['name'] == name:
