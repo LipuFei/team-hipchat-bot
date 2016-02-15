@@ -87,7 +87,8 @@ class HipchatBot(muc.MUCClient):
         pass
 
     def receivedGroupChat(self, room, user, message):
-        CMDS = [u'!HELP', u'!IM_BACK', u'!IM_OFF', u'!SHOW_DAYS', u'!SHOW_NEXT_SHERIFF', u'!NEXT_SHERIFF']
+        CMDS = [u'!HELP', u'!IM_BACK', u'!IM_OFF', u'!SHOW_DAYS',
+                u'!SHOW_SHERIFF', u'!SHOW_NEXT_SHERIFF', u'!NEXT_SHERIFF']
         # value error means it was a one word body
         msg = message.body
         if not msg:
@@ -105,13 +106,14 @@ class HipchatBot(muc.MUCClient):
 Available commands (all commands start with '!'):
   !HELP: show this message.
   !IM_OFF  [@someone] <args> : add your (or someone's) days off.
-           - @someone : (optional) if specified, the days off of that person's will be added instead of yours.
+           - @someone : (optional) if specified, the days will be added for that person instead of you.
            - Format   : yyyy-mm-dd (2016-01-31) or "mon", "tue", etc. (non-case-sensitive)
   !IM_BACK [@someone] <args> : remove your (or someone's) days off.
-           - @someone : (optional) if specified, the days off of that person's will be removed instead of yours.
+           - @someone : (optional) if specified, the days will be removed for that person instead of you.
            - Format   : yyyy-mm-dd (2016-01-31) or "mon", "tue", etc. (non-case-sensitive)
   !SHOW_DAYS [@someone] : show a list of your (or someone's) days-off.
-           - @someone : (optional) if specified, the days off of that person's will be shown instead of yours.
+           - @someone : (optional) if specified, i will show that person's days off instead of yours.
+  !SHOW_SHERIFF         : show the current sheriff.
   !SHOW_NEXT_SHERIFF    : show the next sheriff.
   !NEXT_SHERIFF         : switch to the next sheriff. (in case that the current sheriff is not correct)
 """
@@ -195,6 +197,10 @@ Available commands (all commands start with '!'):
         else:
             msg = u"%s doesn't have any days off registered" % user
 
+        self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
+
+    def cmd_show_sheriff(self, room, user_nick, message):
+        msg = u"The current sheriff is: %s" % self.bot.sheriff_schedule.get_current_person()[1]
         self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
 
     def cmd_show_next_sheriff(self, room, user_nick, message):

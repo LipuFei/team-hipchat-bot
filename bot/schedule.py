@@ -62,9 +62,13 @@ class Schedule(object):
         room_name = self.config.get('team', 'room_name').decode('utf-8')
         topic = self.config.get('team', 'topic_template').replace('<name>', next_person_name).decode('utf-8')
         self.bot.hipchat_api.set_room_topic(room_name, topic)
-        msg = u" >>> Today's sheriff is %s" % next_person_name
+        msg = u"Today's sheriff is %s" % next_person_name
         self.bot.hipchat_api.send_room_notification(room_name, u'bot', msg,
                                                     notify=True, color='green')
+
+    def get_current_person(self):
+        person_name = self.bot.days_off_parser._people_list[self.current_idx][u'name']
+        return self.current_idx, person_name
 
     def get_next_available_person(self):
         current_date = datetime.date.fromtimestamp(time.time())
