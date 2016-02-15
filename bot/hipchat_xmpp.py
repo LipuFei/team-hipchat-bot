@@ -87,7 +87,7 @@ class HipchatBot(muc.MUCClient):
         pass
 
     def receivedGroupChat(self, room, user, message):
-        CMDS = [u'!HELP', u'!IM_BACK', u'!IM_OFF', u'!SHOW_MY_DAYS', u'!SHOW_NEXT_SHERIFF', u'!NEXT_SHERIFF']
+        CMDS = [u'!HELP', u'!IM_BACK', u'!IM_OFF', u'!SHOW_DAYS', u'!SHOW_NEXT_SHERIFF', u'!NEXT_SHERIFF']
         # value error means it was a one word body
         msg = message.body
         if not msg:
@@ -104,53 +104,96 @@ class HipchatBot(muc.MUCClient):
         msg = u"""
 Available commands (all commands start with '!'):
   !HELP: show this message.
-  !IM_OFF  <args> : add your days off. Format: yyyy-mm-dd (2016-01-31) or "mon", "tue", etc. (non-case-sensitive)
-  !IM_BACK <args> : remove your days off. Format: yyyy-mm-dd (2016-01-31) or "mon", "tue", etc. (non-case-sensitive)
-  !SHOW_MY_DAYS   : show a list of your days-off.
-  !SHOW_NEXT_SHERIFF : show the next sheriff.
-  !NEXT_SHERIFF   : switch to the next sheriff. (in case that the current sheriff is not correct)
+  !IM_OFF  [@someone] <args> : add your (or someone's) days off.
+           - @someone : (optional) if specified, the days off of that person's will be added instead of yours.
+           - Format   : yyyy-mm-dd (2016-01-31) or "mon", "tue", etc. (non-case-sensitive)
+  !IM_BACK [@someone] <args> : remove your (or someone's) days off.
+           - @someone : (optional) if specified, the days off of that person's will be removed instead of yours.
+           - Format   : yyyy-mm-dd (2016-01-31) or "mon", "tue", etc. (non-case-sensitive)
+  !SHOW_DAYS [@someone] : show a list of your (or someone's) days-off.
+           - @someone : (optional) if specified, the days off of that person's will be shown instead of yours.
+  !SHOW_NEXT_SHERIFF    : show the next sheriff.
+  !NEXT_SHERIFF         : switch to the next sheriff. (in case that the current sheriff is not correct)
 """
         self.groupChat(self.room_jid, "/code " + msg.decode('utf-8'))
 
-    def cmd_im_back(self, room, user_nick, message):
-        args = message.body.split(' ')
-        valid_args, _ = sanitize_dates([a.strip() for a in args[1:]] if len(args) > 1 else [])
+    def _check_at_user(self, args, default_user):
+        # check if there is a '@'
+        someone = None
+        found_name = None
+        for arg in args:
+            arg = arg.strip()
+            if arg.startswith(u'@'):
+                found_name = arg[1:]
+                arg = found_name.lower()
+                for member in self.bot.sheriff_schedule.team_members:
+                    if member.lower().startswith(arg):
+                        someone = member
+                        found_name = None
+                        break
+                break
+        user = default_user if someone is None else someone
+        return user, found_name
 
-        self.bot.days_off_parser.remove(user_nick, valid_args)
+    def cmd_im_back(self, room, user_nick, message):
+        args = message.body.decode('utf-8').split(u' ')
+        valid_args, invalid_args = sanitize_dates([a.strip() for a in args[1:]] if len(args) > 1 else [])
+        # check if there is a '@'
+        user, found_name = self._check_at_user(invalid_args, user_nick)
+        if found_name is not None:
+            msg = u"could not find team member with name '%s'" % found_name
+            self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
+            return
+
+        self.bot.days_off_parser.remove(user, valid_args)
         self.bot.days_off_parser.save()
 
-        date_list = self.bot.days_off_parser.get_my_days_off(user_nick)
+        date_list = self.bot.days_off_parser.get_my_days_off(user)
         if date_list:
             days = convert_date_list_to_strings(date_list)
-            msg = u"%s has the following days off: [%s]" % (user_nick, u", ".join(days))
+            msg = u"%s has the following days off: [%s]" % (user, u", ".join(days))
         else:
-            msg = u"%s doesn't have any days off registered" % user_nick
+            msg = u"%s doesn't have any days off registered" % user
 
         self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
 
     def cmd_im_off(self, room, user_nick, message):
-        args = message.body.split(' ')
-        valid_args, _ = sanitize_dates([a.strip() for a in args[1:]] if len(args) > 1 else [])
+        args = message.body.decode('utf-8').split(u' ')
+        valid_args, invalid_args = sanitize_dates([a.strip() for a in args[1:]] if len(args) > 1 else [])
+        # check if there is a '@'
+        user, found_name = self._check_at_user(invalid_args, user_nick)
+        if found_name is not None:
+            msg = u"could not find team member with name '%s'" % found_name
+            self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
+            return
 
-        self.bot.days_off_parser.add(user_nick, valid_args)
+        self.bot.days_off_parser.add(user, valid_args)
         self.bot.days_off_parser.save()
 
-        date_list = self.bot.days_off_parser.get_my_days_off(user_nick)
+        date_list = self.bot.days_off_parser.get_my_days_off(user)
         if date_list:
             days = convert_date_list_to_strings(date_list)
-            msg = u"%s has the following days off: [%s]" % (user_nick, u", ".join(days))
+            msg = u"%s has the following days off: [%s]" % (user, u", ".join(days))
         else:
-            msg = u"%s doesn't have any days off registered" % user_nick
+            msg = u"%s doesn't have any days off registered" % user
 
         self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
 
-    def cmd_show_my_days(self, room, user_nick, message):
-        date_list = self.bot.days_off_parser.get_my_days_off(user_nick)
+    def cmd_show_days(self, room, user_nick, message):
+        # check if there is a '@'
+        args = message.body.decode('utf-8').split(u' ')
+        user, found_name = self._check_at_user(args, user_nick)
+        if found_name is not None:
+            msg = u"could not find team member with name '%s'" % found_name
+            self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
+            return
+
+        date_list = self.bot.days_off_parser.get_my_days_off(user)
         if date_list:
             days = convert_date_list_to_strings(date_list)
-            msg = u"%s has the following days off: [%s]" % (user_nick, u", ".join(days))
+            msg = u"%s has the following days off: [%s]" % (user, u", ".join(days))
         else:
-            msg = u"%s doesn't have any days off registered" % user_nick
+            msg = u"%s doesn't have any days off registered" % user
 
         self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
 
