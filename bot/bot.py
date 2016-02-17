@@ -4,6 +4,7 @@ from twisted.internet import reactor
 
 from .daysoff_parser import DaysOffParser
 from .hipchat_api import HipChatApi
+from .hipchat_db import HipchatUserDb
 from .hipchat_xmpp import make_client
 from .schedule import Schedule
 
@@ -22,7 +23,13 @@ class Bot(object):
         self.days_off_parser = DaysOffParser(team_members, self.days_off_file)
         self.days_off_parser.load()
 
-        self.hipchat_api = HipChatApi(self.config.get('hipchat', 'server'),
+        self.hipchat_db = HipchatUserDb(self,
+                                        self.config.get('hipchat', 'server'),
+                                        self.config.get('hipchat', 'auth_token'),
+                                        self.config.get('hipchat', 'db'))
+
+        self.hipchat_api = HipChatApi(self,
+                                      self.config.get('hipchat', 'server'),
                                       self.config.get('hipchat', 'auth_token'))
 
         # start the sheriff scheduling bot
@@ -30,9 +37,11 @@ class Bot(object):
 
         # start the XMPP bot
         self.hipchat_xmpp = make_client(self, config, self.password)
-        self.hipchat_xmpp.startService()
 
     def start(self):
+        self._logger.info(u"start hipchat user database...")
+        self.hipchat_db.populate_user_db()
+
         self._logger.info(u"starting sheriff schedule...")
         self.sheriff_schedule.start()
         self._logger.info(u"starting hipchat xmpp client...")

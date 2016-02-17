@@ -3,7 +3,10 @@
 # Modified by Lipu Fei <lipu.fei815@gmail.com>
 #
 import datetime
+import json
+import logging
 import re
+import time
 
 from twisted.internet import task
 from twisted.python import log
@@ -12,6 +15,7 @@ from wokkel import muc
 from wokkel.client import XMPPClient
 from wokkel.subprotocols import XMPPHandler
 
+from .algorithm.context import is_question_msg
 from .daysoff_parser import WEEKDAYS
 
 RE_DATE = re.compile("^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1])$")
@@ -36,12 +40,14 @@ class KeepAlive(XMPPHandler):
 
 class HipchatBot(muc.MUCClient):
 
-    def __init__(self, bot, server, room, nickname, stfu_minutes, team_members):
+    def __init__(self, bot, server, room, room_name, nickname, stfu_minutes, team_members):
         super(HipchatBot, self).__init__()
+        self._logger = logging.getLogger(self.__class__.__name__)
         self.bot = bot
         self.connected = False
         self.server = server
         self.room = room
+        self.room_name = room_name
         self.nickname = nickname
         self.stfu_minutes = int(stfu_minutes) if stfu_minutes else 0
         self.room_jid = jid.internJID(
@@ -50,6 +56,9 @@ class HipchatBot(muc.MUCClient):
                                                  nickname=self.nickname))
         self.last_spoke = None
         self.team_members = team_members
+
+        self.last_question_time = 0.0
+        self.question_rely_interval = 10.0  # one notification for questions within 10 secs
 
     def connectionInitialized(self):
         """The bot has connected to the xmpp server, now try to join the room.
@@ -93,13 +102,38 @@ class HipchatBot(muc.MUCClient):
         msg = message.body
         if not msg:
             return
-        msg = msg.decode('utf-8')
+        msg = msg.decode('utf-8').strip()
 
         cmd = msg.split(u' ')[0]
-        if cmd in CMDS and user.nick in self.team_members:
-            method = getattr(self, u'cmd_' + cmd[1:].lower(), None)
-            if method:
-                method(room, user.nick, message)
+        if cmd in CMDS:
+            # ignore the commands from non-members
+            if user.nick in self.team_members:
+                self._logger.info(u"ignore command from non-team-member '%s'", user.nick)
+            else:
+                cmd_name = cmd[1:].lower()
+                self._logger.info(u"try to handle command '%s' from member '%s'", cmd_name, user.nick)
+                method = getattr(self, u'cmd_' + cmd[1:].lower(), None)
+                if method:
+                    method(room, user.nick, message)
+        else:
+            # normal text, check if it's a question
+            if is_question_msg(msg):
+                # don't rely questions too often
+                current_time = time.time()
+                if self.last_question_time + self.question_rely_interval > current_time:
+
+                    return
+
+                # tell the sheriff to handle this question
+                sheriff_name = self.bot.sheriff_schedule.get_current_person()
+                mention_name = u""
+                if self.bot.hipchat_db.has(sheriff_name):
+                    data = json.loads(self.bot.hipchat_db.get(sheriff_name), encoding='utf-8')
+                    mention_name = u" @%s" % data[u'mention_name']
+                msg = u"""
+Hi sheriff%s, %s may have asked a question. Could you have a look?""" % (mention_name, user.nick)
+
+                self.bot.hipchat_api.send_room_notification(self.room_name, u'bot', msg, notify=True, color=u'green')
 
     def cmd_help(self, room, user_nick, message):
         msg = u"""
@@ -235,6 +269,7 @@ def make_client(bot, config, password):
     mucbot = HipchatBot(bot,
                         config.get('hipchat', 'room_server'),
                         config.get('hipchat', 'room_jid'),
+                        config.get('team', 'room_name'),
                         config.get('hipchat', 'nickname'),
                         config.get('hipchat', 'stfu_minutes'),
                         team_members)

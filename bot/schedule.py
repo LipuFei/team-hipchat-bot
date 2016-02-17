@@ -1,11 +1,11 @@
+from ConfigParser import ConfigParser
 import datetime
-from dateutil.relativedelta import relativedelta
+import json
 import logging
 import time
 
-from ConfigParser import ConfigParser
-
 from crontab import CronTab
+from dateutil.relativedelta import relativedelta
 from twisted.internet import reactor
 
 
@@ -58,17 +58,33 @@ class Schedule(object):
         self.current_idx = next_idx
         self._update_cache()
 
-        # update
+        # set room topic
         room_name = self.config.get('team', 'room_name').decode('utf-8')
         topic = self.config.get('team', 'topic_template').replace('<name>', next_person_name).decode('utf-8')
         self.bot.hipchat_api.set_room_topic(room_name, topic)
-        msg = u"Today's sheriff is %s" % next_person_name
+
+        # try to get mention name
+        msg = u" >>> Today's sheriff is %s" % next_person_name
+        data = None
+        if self.bot.hipchat_db.has(next_person_name):
+            data = json.loads(self.bot.hipchat_db.get(next_person_name), encoding='utf-8')
+            mention_name = data[u'mention_name']
+            msg += u" @%s" % mention_name
+
+        # send room message
         self.bot.hipchat_api.send_room_notification(room_name, u'bot', msg,
                                                     notify=True, color='green')
 
+        # also send private message if data is available
+        if data is not None:
+            user_id = data[u'id']
+            msg = u"Hi %(name)s, you are the sheriff of room %(room)s today." % {u'name': data[u'name'],
+                                                                                 u'room': room_name}
+            msg += u"\nAll potential questions will be forwarded to you."
+            self.bot.hipchat_api.send_private_message(user_id, msg)
+
     def get_current_person(self):
-        person_name = self.bot.days_off_parser._people_list[self.current_idx][u'name']
-        return self.current_idx, person_name
+        return self.bot.days_off_parser._people_list[self.current_idx][u'name']
 
     def get_next_available_person(self):
         current_date = datetime.date.fromtimestamp(time.time())
