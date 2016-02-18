@@ -116,12 +116,14 @@ class HipchatBot(muc.MUCClient):
                 if method:
                     method(room, user.nick, message)
         else:
+            if user.nick in self.team_members:
+                return
+
             # normal text, check if it's a question
             if is_question_msg(msg):
                 # don't rely questions too often
                 current_time = time.time()
                 if self.last_question_time + self.question_rely_interval > current_time:
-
                     return
 
                 # tell the sheriff to handle this question
