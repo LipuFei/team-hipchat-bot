@@ -89,7 +89,7 @@ class HipchatUserDb(object):
     def _got_user_success(self, data):
         user = json.loads(data, encoding='utf-8')
         self.set(user[u'name'], data.encode('utf-8'))
-        self._logger.info(u"user '%s' details updated.", user[u'name'])
+        self._logger.info(u"user details updated.")
 
     def _got_user_failure(self, result):
         self._logger.error(u"failed to get user details: %s", repr(result))
