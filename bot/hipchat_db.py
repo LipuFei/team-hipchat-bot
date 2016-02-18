@@ -26,7 +26,7 @@ class HipchatUserDb(object):
         self._db.Put(name.encode('utf-8'), mention_name.encode('utf-8'))
 
     def get(self, name):
-        self._db.Get(name.encode('utf-8'))
+        return self._db.Get(name.encode('utf-8'))
 
     def has(self, name):
         result = True
