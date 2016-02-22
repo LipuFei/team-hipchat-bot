@@ -51,9 +51,7 @@ class Schedule(object):
             self.cache_config.write(f)
 
     def switch_to_next_person(self):
-        current_date = datetime.date.fromtimestamp(time.time())
-        next_idx, next_person_name = self.bot.days_off_parser.get_next_available_person(self.current_idx,
-                                                                                        current_date)
+        next_idx, next_person_name = self.get_next_available_person()
         self._logger.info(u"today's sheriff is %s, index: %s", next_person_name, next_idx)
         self.current_idx = next_idx
         self._update_cache()

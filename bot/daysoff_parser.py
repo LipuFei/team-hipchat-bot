@@ -158,7 +158,7 @@ class DaysOffParser(object):
             person = self._people_list[idx]
             if self.check_availability(person[u'name'], date):
                 return idx, person[u'name']
-            idx = (current_idx + 1) % len(self._people_list)
+            idx = (idx + 1) % len(self._people_list)
 
         idx = (current_idx + 1) % len(self._people_list)
         return idx, self._people_list[idx][u'name']
