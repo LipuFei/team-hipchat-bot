@@ -110,7 +110,7 @@ class HipchatBot(muc.MUCClient):
         cmd = msg.split(u' ')[0]
         if cmd in CMDS:
             # ignore the commands from non-members
-            if user.nick in self.team_members:
+            if user.nick not in self.team_members:
                 self._logger.info(u"ignore command from non-team-member '%s'", user.nick)
             else:
                 cmd_name = cmd[1:].lower()
