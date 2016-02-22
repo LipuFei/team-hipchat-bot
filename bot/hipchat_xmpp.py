@@ -104,6 +104,9 @@ class HipchatBot(muc.MUCClient):
             return
         msg = msg.decode('utf-8').strip()
 
+        if user is None:
+            return
+
         cmd = msg.split(u' ')[0]
         if cmd in CMDS:
             # ignore the commands from non-members
