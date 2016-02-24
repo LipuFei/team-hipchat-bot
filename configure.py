@@ -7,7 +7,7 @@
 #  - HCBOT_AUTH_TOKEN:
 #  - HCBOT_ROOM_JID:
 #  - HCBOT_ROOM_SERVER:
-#  - HCBOT_SERVER:
+#  - HCBOT_API_SERVER:
 #  - HCBOT_NICKNAME:
 #  - HCBOT_STFU_MINUTES:
 #  - HCBOT_DB:
@@ -30,7 +30,7 @@ ENV_KEY_MAP = {u'HCBOT_JID':          (u'hipchat', u'jid',          u''),
                u'HCBOT_AUTH_TOKEN':   (u'hipchat', u'auth_token',   u''),
                u'HCBOT_ROOM_JID':     (u'hipchat', u'room_jid',     u''),
                u'HCBOT_ROOM_SERVER':  (u'hipchat', u'room_server',  u''),
-               u'HCBOT_SERVER':       (u'hipchat', u'server',       u''),
+               u'HCBOT_API_SERVER':   (u'hipchat', u'api_server',   u''),
                u'HCBOT_NICKNAME':     (u'hipchat', u'nickname',     u''),
                u'HCBOT_STFU_MINUTES': (u'hipchat', u'stfu_minutes', 0),
                u'HCBOT_DB':           (u'hipchat', u'db',           u'hipchat_db'),

@@ -24,7 +24,7 @@ class Bot(object):
         self.days_off_parser.load()
 
         self.hipchat_db = HipchatUserDb(self,
-                                        self.config.get('hipchat', 'server'),
+                                        self.config.get('hipchat', 'api_server'),
                                         self.config.get('hipchat', 'auth_token'),
                                         self.config.get('hipchat', 'db'))
 
