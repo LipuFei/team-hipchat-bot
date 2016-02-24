@@ -3,6 +3,9 @@ cache.txt
 config.ini
 daysoff.txt
 
+# docker-related files
+docker/team-hipchat-bot
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
