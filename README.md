@@ -63,3 +63,7 @@ MON
 [user3]
 # no non-available days for user3
 ```
+
+## License
+
+This project is licensed under MIT. See [LICENSE](LICENSE).
