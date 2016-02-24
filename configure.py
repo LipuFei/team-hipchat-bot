@@ -3,21 +3,21 @@
 # This script checks for environment variables and use them to set the configuration file.
 #
 # Supported environment variables are:
-#  - HCBOT_JID:
-#  - HCBOT_AUTH_TOKEN:
-#  - HCBOT_ROOM_JID:
-#  - HCBOT_ROOM_SERVER:
-#  - HCBOT_API_SERVER:
-#  - HCBOT_NICKNAME:
-#  - HCBOT_STFU_MINUTES:
-#  - HCBOT_DB:
+#  - HCBOT_HIPPCHAT_JID:
+#  - HCBOT_HIPPCHAT_AUTH_TOKEN:
+#  - HCBOT_HIPPCHAT_ROOM_JID:
+#  - HCBOT_HIPPCHAT_ROOM_SERVER:
+#  - HCBOT_HIPPCHAT_API_SERVER:
+#  - HCBOT_HIPPCHAT_NICKNAME:
+#  - HCBOT_HIPPCHAT_STFU_MINUTES:
+#  - HCBOT_HIPPCHAT_DB:
 #
-#  - HCBOT_TEAM_MEMBERS:
-#  - HCBOT_DAYSOFF_FILE:
-#  - HCBOT_CACHE_FILE:
-#  - HCBOT_ROOM_NAME:
-#  - HCBOT_TOPIC_UPDATE_TIME:
-#  - HCBOT_TOPIC_TEMPLATE:
+#  - HCBOT_HIPPCHAT_TEAM_MEMBERS:
+#  - HCBOT_HIPPCHAT_DAYSOFF_FILE:
+#  - HCBOT_HIPPCHAT_CACHE_FILE:
+#  - HCBOT_HIPPCHAT_ROOM_NAME:
+#  - HCBOT_HIPPCHAT_TOPIC_UPDATE_TIME:
+#  - HCBOT_HIPPCHAT_TOPIC_TEMPLATE:
 #
 from ConfigParser import ConfigParser
 import codecs
@@ -26,21 +26,21 @@ import sys
 
 
 # a map of environment variables and configurations (section, option, default value)
-ENV_KEY_MAP = {u'HCBOT_JID':          (u'hipchat', u'jid',          u''),
-               u'HCBOT_AUTH_TOKEN':   (u'hipchat', u'auth_token',   u''),
-               u'HCBOT_ROOM_JID':     (u'hipchat', u'room_jid',     u''),
-               u'HCBOT_ROOM_SERVER':  (u'hipchat', u'room_server',  u''),
-               u'HCBOT_API_SERVER':   (u'hipchat', u'api_server',   u''),
-               u'HCBOT_NICKNAME':     (u'hipchat', u'nickname',     u''),
-               u'HCBOT_STFU_MINUTES': (u'hipchat', u'stfu_minutes', 0),
-               u'HCBOT_DB':           (u'hipchat', u'db',           u'hipchat_db'),
+ENV_KEY_MAP = {u'HCBOT_HIPPCHAT_JID':          (str, u''),
+               u'HCBOT_HIPPCHAT_AUTH_TOKEN':   (str, u''),
+               u'HCBOT_HIPPCHAT_ROOM_JID':     (str, u''),
+               u'HCBOT_HIPPCHAT_ROOM_SERVER':  (str, u''),
+               u'HCBOT_HIPPCHAT_API_SERVER':   (str, u''),
+               u'HCBOT_HIPPCHAT_NICKNAME':     (str, u''),
+               u'HCBOT_HIPPCHAT_STFU_MINUTES': (int, 0),
+               u'HCBOT_HIPPCHAT_DB':           (str, u'hipchat_db'),
 
-               u'HCBOT_TEAM_MEMBERS':      (u'team', u'members',           u''),
-               u'HCBOT_DAYSOFF_FILE':      (u'team', u'daysoff_file',      u'daysoff.txt'),
-               u'HCBOT_CACHE_FILE':        (u'team', u'cache_file',        u'cache.txt'),
-               u'HCBOT_ROOM_NAME':         (u'team', u'room_name',         u''),
-               u'HCBOT_TOPIC_UPDATE_TIME': (u'team', u'topic_update_time', u'0 9 * * MON-FRI *'),
-               u'HCBOT_TOPIC_TEMPLATE':    (u'team', u'topic_template',    u'Current person on-duty: <name>'),
+               u'HCBOT_TEAM_MEMBERS':           (str, u''),
+               u'HCBOT_TEAM_DAYSOFF_FILE':      (str, u'daysoff.txt'),
+               u'HCBOT_TEAM_CACHE_FILE':        (str, u'cache.txt'),
+               u'HCBOT_TEAM_ROOM_NAME':         (str, u''),
+               u'HCBOT_TEAM_TOPIC_UPDATE_TIME': (str, u'0 9 * * MON-FRI *'),
+               u'HCBOT_TEAM_TOPIC_TEMPLATE':    (str, u'Current person on-duty: <name>'),
                }
 
 
@@ -71,11 +71,12 @@ if __name__ == '__main__':
     # check environment variables
     for env_name, item in ENV_KEY_MAP.iteritems():
         value = os.getenv(env_name, u'').strip()
-        if value:
+        if value == u'':
             continue
 
-        if env_name == u"HCBOT_STFU_MINUTES":
-            value = int(value)
+        item_type = item[0]
+        if item_type != str:
+            value = item_type(value)
 
         section, option, _ = item
         config_parser.set(section, option, value)
