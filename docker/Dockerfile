@@ -18,4 +18,4 @@ ENV PYTHONPATH /team-hipchat-bot:.:${PYTHONPATH}
 RUN chown -R nobody:nogroup /team-hipchat-bot
 WORKDIR /team-hipchat-bot
 USER nobody
-CMD ./configure.py && ./bot.py
+CMD ./bot.py

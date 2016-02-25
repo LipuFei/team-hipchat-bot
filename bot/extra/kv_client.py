@@ -2,7 +2,7 @@ import logging
 
 from twisted.web.client import getPage
 
-from .util import get_config_name_from_env_name
+from ..util.config import get_config_name_from_env_name
 
 
 class RestKvClient(object):
