@@ -1,5 +1,6 @@
 import logging
 
+from twisted.internet import reactor
 from twisted.web.client import getPage
 
 from ..util.config import get_config_name_from_env_name
@@ -10,7 +11,7 @@ class RestKvClient(object):
     A client for retrieving key-values from a RESTful Key-Value service.
     """
 
-    def __init__(self, bot, url, key_list, time_out=10):
+    def __init__(self, bot, url, key_list, time_out=10, callback=None):
         # pre-check
         if len(set(key_list)) != len(key_list):
             raise RuntimeError(u"You have duplicate keys in the key list: %s", key_list)
@@ -20,6 +21,7 @@ class RestKvClient(object):
         self.url = url
         self.key_list = key_list
         self.time_out = time_out
+        self._callback = callback
 
         self._remaining_key_list = []
         self._key_update_defer = None
@@ -86,11 +88,19 @@ class RestKvClient(object):
         # clean up
         self._clean_up_update_task_data()
 
+        # callback
+        if self._callback is not None:
+            reactor.callLater(0.0, self._callback, True)
+
     def _on_get_all_keys_failure(self, data):
         # if we failed to retrieve the keys, we abort the key update
         self._logger.error(u"failed to retrieve all keys, abort key update.")
         self._logger.debug(u"failure data: %s", data)
         self._clean_up_update_task_data()
+
+        # callback
+        if self._callback is not None:
+            reactor.callLater(0.0, self._callback, False)
 
     def _fetch_next_key(self):
         # fetches the next key in the remaining key list
