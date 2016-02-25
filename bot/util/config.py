@@ -5,34 +5,40 @@ from ConfigParser import ConfigParser
 import os
 
 
-# a map of environment variable names and the key-values
-ENV_KEY_MAP = {u'HCBOT_HIPPCHAT_JID':          (str, u''),
-               u'HCBOT_HIPPCHAT_AUTH_TOKEN':   (str, u''),
-               u'HCBOT_HIPPCHAT_ROOM_JID':     (str, u''),
-               u'HCBOT_HIPPCHAT_ROOM_SERVER':  (str, u''),
-               u'HCBOT_HIPPCHAT_API_SERVER':   (str, u''),
-               u'HCBOT_HIPPCHAT_NICKNAME':     (str, u''),
-               u'HCBOT_HIPPCHAT_STFU_MINUTES': (int, 0),
-               u'HCBOT_HIPPCHAT_DB':           (str, u'hipchat_db'),
+# a map of environment variable names and default values
+DEFAULT_DICT = {u'HCBOT_HIPCHAT_JID': u'',
+                u'HCBOT_HIPCHAT_AUTH_TOKEN':   u'',
+                u'HCBOT_HIPCHAT_ROOM_JID':     u'',
+                u'HCBOT_HIPCHAT_ROOM_SERVER':  u'',
+                u'HCBOT_HIPCHAT_API_SERVER':   u'',
+                u'HCBOT_HIPCHAT_NICKNAME':     u'',
+                u'HCBOT_HIPCHAT_STFU_MINUTES': u'0',
+                u'HCBOT_HIPCHAT_DB':           u'hipchat_db',
 
-               u'HCBOT_TEAM_MEMBERS':           (str, u''),
-               u'HCBOT_TEAM_DAYSOFF_FILE':      (str, u'daysoff.txt'),
-               u'HCBOT_TEAM_CACHE_FILE':        (str, u'cache.txt'),
-               u'HCBOT_TEAM_ROOM_NAME':         (str, u''),
-               u'HCBOT_TEAM_TOPIC_UPDATE_TIME': (str, u'0 9 * * MON-FRI *'),
-               u'HCBOT_TEAM_TOPIC_TEMPLATE':    (str, u'Current person on-duty: <name>'),
-               }
+                u'HCBOT_TEAM_MEMBERS':           u'',
+                u'HCBOT_TEAM_DAYSOFF_FILE':      u'daysoff.txt',
+                u'HCBOT_TEAM_CACHE_FILE':        u'cache.txt',
+                u'HCBOT_TEAM_ROOM_NAME':         u'',
+                u'HCBOT_TEAM_TOPIC_UPDATE_TIME': u'0 9 * * MON-FRI *',
+                u'HCBOT_TEAM_TOPIC_TEMPLATE':    u'Current person on-duty: <name>',
+                }
 
 
-def set_default_config(config):
+def set_default_config(config, set_all=False):
     """
     Sets the given config parser to the default settings.
     :param config: The given config parser.
+    :param set_all: If True, all settings will be set to the default, otherwise,
+                    only the missing settings will be set.
     """
-    for env_name, item in ENV_KEY_MAP.iteritems():
+    for env_name, item in DEFAULT_DICT.iteritems():
         section, option = get_config_name_from_env_name(env_name)
-        item_value = item[1]
-        config.set(section, option, item_value)
+        item_value = item.decode('utf-8')
+
+        if set_all or not config.has_option(section, option):
+            if not config.has_section(section):
+                config.add_section(section)
+            config.set(section, option, item_value)
 
 
 def override_config_with_env(config):
@@ -46,13 +52,7 @@ def override_config_with_env(config):
         if result is None:
             continue
         section, option = result
-
-        # convert the value to the proper type
-        item_type = ENV_KEY_MAP[env_name][0]
-        if item_type == str:
-            item_value = env_value.decode('utf-8')
-        else:
-            item_value = item_type(env_value)
+        item_value = env_value.decode('utf-8')
 
         config.set(section, option, item_value)
 
@@ -63,9 +63,9 @@ def get_config_name_from_env_name(env_name):
     :param env_name: The given environment variable name.
     :return:  a tuple of section and option if the give name valid, otherwise None.
     """
-    if env_name not in ENV_KEY_MAP:
+    if env_name not in DEFAULT_DICT:
         return
-    parts = env_name.split(u'_', 3)
+    parts = env_name.split(u'_', 2)
     if len(parts) != 3:
         return
     if parts[0] != u'HCBOT':
@@ -89,9 +89,9 @@ def init_config(config_file):
             config_parser.read([config_file])
         else:
             raise RuntimeError(u"%s is not a file." % config_file)
-    else:
-        # if not config file is present, use the default values
-        set_default_config(config_parser)
+
+    # set the missing settings to the default values
+    set_default_config(config_parser)
 
     # override the config file values with environment variables (if present)
     override_config_with_env(config_parser)
