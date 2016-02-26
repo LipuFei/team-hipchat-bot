@@ -1,71 +1,87 @@
 from ConfigParser import ConfigParser
+import codecs
 import datetime
 import json
 import logging
 import time
 
-from crontab import CronTab
-from dateutil.relativedelta import relativedelta
+from croniter import croniter
 from twisted.internet import reactor
+
+from .util.date import to_human_readable_time
+from .util.team_scheduler import TeamRoundRobinScheduler
 
 
 class Schedule(object):
 
-    def __init__(self, bot, config):
+    def __init__(self, bot):
         self._logger = logging.getLogger(self.__class__.__name__)
         self.bot = bot
-        self.config = config
-        self.team_members = [n.strip() for n in config.get('team', 'members').decode('utf-8').strip().split(u',')]
+        self.config = bot.config
 
-        self.cache_file = config.get('team', 'cache_file').decode('utf-8')
+        # team members are sorted alphabetically
+        team_members = [n.strip() for n in self.config.get(u'team', u'members').strip().split(u',')]
+        self.team_members = sorted(team_members)
+
+        self._team_scheduler = TeamRoundRobinScheduler(team_members, bot.days_off_parser)
+
+        # load cache file
+        self.cache_file = self.config.get(u'team', u'cache_file')
         self.cache_config = ConfigParser()
-        self.cache_config.read([self.cache_file])
-        if not self.cache_config.has_section('schedule'):
-            self.cache_config.add_section('schedule')
-        if not self.cache_config.has_option('schedule', 'last_idx'):
-            self.cache_config.set('schedule', 'last_idx', 0)
+        with codecs.open(self.cache_file, 'r', 'utf-8') as f:
+            self.cache_config.readfp(f)
 
-        self.current_idx = self.cache_config.getint('schedule', 'last_idx')
+        if not self.cache_config.has_section(u'schedule'):
+            self.cache_config.add_section(u'schedule')
+        if not self.cache_config.has_option(u'schedule', u'last_idx'):
+            self.cache_config.set(u'schedule', u'last_idx', 0)
 
-        self.crontab = CronTab(config.get('team', 'topic_update_time'))
+        current_idx = self.cache_config.getint(u'schedule', u'last_idx')
+        self._team_scheduler.set_current_person_idx(current_idx)
+
+        self.crontab = croniter(self.config.get(u'team', u'topic_update_time'))
+
         self.next_scheduled_defer = None
 
     def start(self):
-        next_time = self.crontab.next()
+        next_time = self.crontab.get_next() - time.time()
         self._logger.info(u"next update will be after %s", to_human_readable_time(next_time))
-
         self.next_scheduled_defer = reactor.callLater(next_time, self._regular_task)
 
     def _regular_task(self):
         # switch to the next person
         self.switch_to_next_person()
 
-        next_time = self.crontab.next()
+        next_time = self.crontab.get_next() - time.time()
         self._logger.info(u"next update will be after %s", to_human_readable_time(next_time))
-
         self.next_scheduled_defer = reactor.callLater(next_time, self._regular_task)
 
     def _update_cache(self):
-        self.cache_config.set('schedule', 'last_idx', self.current_idx)
-        with open(self.cache_file, 'wb') as f:
+        self.cache_config.set(u'schedule', u'last_idx', self.get_current_person()[1])
+        with codecs.open(self.cache_file, 'w', 'utf-8') as f:
             self.cache_config.write(f)
 
     def switch_to_next_person(self):
-        next_idx, next_person_name = self.get_next_available_person()
-        self._logger.info(u"today's sheriff is %s, index: %s", next_person_name, next_idx)
-        self.current_idx = next_idx
+        current_date = datetime.date.fromtimestamp(time.time())
+        self._team_scheduler.switch_to_next_person(current_date)
         self._update_cache()
+        self._update_hipchat_info()
+
+    def _update_hipchat_info(self):
+        current_person, person_idx = self.get_current_person()
+
+        self._logger.info(u"today's sheriff is %s, index: %s", current_person, person_idx)
 
         # set room topic
-        room_name = self.config.get('team', 'room_name').decode('utf-8')
-        topic = self.config.get('team', 'topic_template').replace('<name>', next_person_name).decode('utf-8')
+        room_name = self.config.get(u'team', u'room_name')
+        topic = self.config.get(u'team', u'topic_template').replace(u'<name>', current_person)
         self.bot.hipchat_api.set_room_topic(room_name, topic)
 
         # try to get mention name
-        msg = u" >>> Today's sheriff is %s" % next_person_name
+        msg = u" >>> Today's sheriff is %s" % current_person
         data = None
-        if self.bot.hipchat_db.has(next_person_name):
-            data = json.loads(self.bot.hipchat_db.get(next_person_name), encoding='utf-8')
+        if self.bot.hipchat_db.has(current_person):
+            data = json.loads(self.bot.hipchat_db.get(current_person), encoding='utf-8')
             mention_name = data[u'mention_name']
             msg += u" @%s" % mention_name
 
@@ -82,18 +98,16 @@ class Schedule(object):
             self.bot.hipchat_api.send_private_message(user_id, msg)
 
     def get_current_person(self):
-        return self.bot.days_off_parser._people_list[self.current_idx][u'name']
+        return self._team_scheduler.get_current_person()
 
     def get_next_available_person(self):
         current_date = datetime.date.fromtimestamp(time.time())
-        next_idx, next_person_name = self.bot.days_off_parser.get_next_available_person(self.current_idx,
-                                                                                        current_date)
+        next_person_name, next_idx = self._team_scheduler.get_next_person(current_date)
         return next_idx, next_person_name
 
-
-def to_human_readable_time(seconds):
-    attrs = [u'years', u'months', u'days', u'hours', u'minutes', u'seconds']
-    delta = relativedelta(seconds=seconds)
-    human_readable = [u'%d %s' % (getattr(delta, attr), getattr(delta, attr) > 1 and attr or attr[:-1])
-                      for attr in attrs if getattr(delta, attr)]
-    return ' '.join(human_readable)
+    def set_current_person(self, name):
+        result = self._team_scheduler.set_current_person(name)
+        if result is not None:
+            self._update_cache()
+            self._update_hipchat_info()
+        return result

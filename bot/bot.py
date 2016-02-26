@@ -1,47 +1,54 @@
 import logging
-import os
-import sys
 
+import os
 from twisted.internet import reactor
 
-from .daysoff_parser import DaysOffParser
+from .extra.kv_client import KvClient
 from .hipchat_api import HipChatApi
 from .hipchat_db import HipchatUserDb
 from .hipchat_xmpp import make_client
 from .schedule import Schedule
-from .extra.kv_client import RestKvClient
+from .util.config import init_config, write_config_file_utf8
+from .util.daysoff_parser import DaysOffParser
 
 
 class Bot(object):
 
-    def __init__(self, config_file, config, password):
+    def __init__(self, config_file, password):
         self._logger = logging.getLogger(self.__class__.__name__)
         self.config_file = config_file
-        self.config = config
         self.password = password
+        self.config = None
 
-        team_members = [n.strip() for n in config.get('team', 'members').decode('utf-8').strip().split(u',')]
+        self.days_off_file = None
+        self.days_off_parser = None
+
+        self.hipchat_db = None
+        self.hipchat_api = None
+        self.sheriff_schedule = None
+        self.hipchat_xmpp = None
 
         self.kv_client = None
 
-        self.days_off_file = self.config.get('team', 'daysoff_file')
-        self.days_off_parser = DaysOffParser(team_members, self.days_off_file)
+    def initialize(self):
+        self.config = init_config(self.config_file)
+
+        self.days_off_file = self.config.get(u'team', u'daysoff_file')
+        self.days_off_parser = DaysOffParser(self.days_off_file)
         self.days_off_parser.load()
 
         self.hipchat_db = HipchatUserDb(self,
-                                        self.config.get('hipchat', 'api_server'),
-                                        self.config.get('hipchat', 'auth_token'),
-                                        self.config.get('hipchat', 'db'))
+                                        self.config.get(u'hipchat', u'api_server'),
+                                        self.config.get(u'hipchat', u'auth_token'),
+                                        self.config.get(u'hipchat', u'db'))
 
         self.hipchat_api = HipChatApi(self,
-                                      self.config.get('hipchat', 'api_server'),
-                                      self.config.get('hipchat', 'auth_token'))
+                                      self.config.get(u'hipchat', u'api_server'),
+                                      self.config.get(u'hipchat', u'auth_token'))
 
-        # start the sheriff scheduling bot
-        self.sheriff_schedule = Schedule(self, config)
+        self.sheriff_schedule = Schedule(self)
 
-        # start the XMPP bot
-        self.hipchat_xmpp = make_client(self, config, self.password)
+        self.hipchat_xmpp = make_client(self, self.config, self.password)
 
     def start(self):
         # start the kv client to update if specified
@@ -55,7 +62,7 @@ class Bot(object):
                     self._start_all()
 
             self._logger.info(u"Fetching configuration from URL...")
-            client = RestKvClient(self, init_from_url, [], callback=check_kv_result)
+            client = KvClient(self, init_from_url, [], callback=check_kv_result)
             client.update_all_keys()
         else:
             self._start_all()
@@ -73,5 +80,4 @@ class Bot(object):
 
     def save_config(self):
         self._logger.info(u"saving config file...")
-        with open(self.config_file, 'wb') as f:
-            self.config.write(f)
+        write_config_file_utf8(self.config, self.config_file)

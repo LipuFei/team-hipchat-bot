@@ -2,6 +2,7 @@
 Configuration related code.
 """
 from ConfigParser import ConfigParser
+import codecs
 import os
 
 
@@ -31,14 +32,13 @@ def set_default_config(config, set_all=False):
     :param set_all: If True, all settings will be set to the default, otherwise,
                     only the missing settings will be set.
     """
-    for env_name, item in DEFAULT_DICT.iteritems():
+    for env_name, value in DEFAULT_DICT.iteritems():
         section, option = get_config_name_from_env_name(env_name)
-        item_value = item.decode('utf-8')
 
         if set_all or not config.has_option(section, option):
             if not config.has_section(section):
                 config.add_section(section)
-            config.set(section, option, item_value)
+            config.set(section, option, value)
 
 
 def override_config_with_env(config):
@@ -86,7 +86,7 @@ def init_config(config_file):
     # load config file if exists
     if os.path.exists(config_file):
         if os.path.isfile(config_file):
-            config_parser.read([config_file])
+            read_config_file_utf8(config_parser, config_file)
         else:
             raise RuntimeError(u"%s is not a file." % config_file)
 
@@ -96,3 +96,23 @@ def init_config(config_file):
     # override the config file values with environment variables (if present)
     override_config_with_env(config_parser)
     return config_parser
+
+
+def read_config_file_utf8(config, file_path):
+    """
+    Reads a config file with utf-8 encoding.
+    :param config: The config parser.
+    :param file_path: The config file path.
+    """
+    with codecs.open(file_path, 'r', 'utf-8') as f:
+        config.readfp(f)
+
+
+def write_config_file_utf8(config, file_path):
+    """
+    Writes a config file with utf-8 encoding.
+    :param config: The config parser.
+    :param file_path: The config file path.
+    """
+    with codecs.open(file_path, 'w', 'utf-8') as f:
+        config.write(f)

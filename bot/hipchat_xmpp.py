@@ -5,7 +5,6 @@
 import datetime
 import json
 import logging
-import re
 import time
 
 from twisted.internet import task
@@ -16,9 +15,7 @@ from wokkel.client import XMPPClient
 from wokkel.subprotocols import XMPPHandler
 
 from .algorithm.context import is_question_msg
-from .daysoff_parser import WEEKDAYS
-
-RE_DATE = re.compile("^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1])$")
+from .util.daysoff_parser import sanitize_dates
 
 
 class KeepAlive(XMPPHandler):
@@ -156,7 +153,7 @@ Available commands (all commands start with '!'):
   !SHOW_NEXT_SHERIFF    : show the next sheriff.
   !NEXT_SHERIFF         : switch to the next sheriff. (in case that the current sheriff is not correct)
 """
-        self.groupChat(self.room_jid, "/code " + msg.decode('utf-8'))
+        self.groupChat(self.room_jid, "/code " + msg.encode('utf-8'))
 
     def _check_at_user(self, args, default_user):
         # check if there is a '@'
@@ -183,7 +180,7 @@ Available commands (all commands start with '!'):
         user, found_name = self._check_at_user(invalid_args, user_nick)
         if found_name is not None:
             msg = u"could not find team member with name '%s'" % found_name
-            self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
+            self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
             return
 
         self.bot.days_off_parser.remove(user, valid_args)
@@ -196,7 +193,7 @@ Available commands (all commands start with '!'):
         else:
             msg = u"%s doesn't have any days off registered" % user
 
-        self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
+        self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
 
     def cmd_im_off(self, room, user_nick, message):
         args = message.body.decode('utf-8').split(u' ')
@@ -205,7 +202,7 @@ Available commands (all commands start with '!'):
         user, found_name = self._check_at_user(invalid_args, user_nick)
         if found_name is not None:
             msg = u"could not find team member with name '%s'" % found_name
-            self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
+            self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
             return
 
         self.bot.days_off_parser.add(user, valid_args)
@@ -218,7 +215,7 @@ Available commands (all commands start with '!'):
         else:
             msg = u"%s doesn't have any days off registered" % user
 
-        self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
+        self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
 
     def cmd_show_days(self, room, user_nick, message):
         # check if there is a '@'
@@ -226,7 +223,7 @@ Available commands (all commands start with '!'):
         user, found_name = self._check_at_user(args, user_nick)
         if found_name is not None:
             msg = u"could not find team member with name '%s'" % found_name
-            self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
+            self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
             return
 
         date_list = self.bot.days_off_parser.get_my_days_off(user)
@@ -236,21 +233,32 @@ Available commands (all commands start with '!'):
         else:
             msg = u"%s doesn't have any days off registered" % user
 
-        self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
+        self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
 
     def cmd_show_sheriff(self, room, user_nick, message):
         msg = u"The current sheriff is: %s" % self.bot.sheriff_schedule.get_current_person()[1]
-        self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
+        self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
 
     def cmd_show_next_sheriff(self, room, user_nick, message):
         msg = u"Next sheriff is: %s" % self.bot.sheriff_schedule.get_next_available_person()[1]
-        self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
+        self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
 
     def cmd_next_sheriff(self, room, user_nick, message):
         msg = u"Switching to the next sheriff: %s" % self.bot.sheriff_schedule.get_next_available_person()[1]
-        self.groupChat(self.room_jid, '/code > ' + msg.decode('utf-8'))
+        self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
 
         self.bot.sheriff_schedule.switch_to_next_person()
+
+    def cmd_set_sheriff(self, room, user_nick, message):
+        args = message.body.decode('utf-8').split(u' ')
+        if len(args) != 2:
+            self.groupChat(self.room_jid, "/code > ERROR: Invalid command: " + message.body.encode('utf-8'))
+            return
+
+        name = args[1].strip()
+        current_sheriff = self.bot.sheriff_schedule.set_current_person(name)
+        if current_sheriff is None:
+            self.groupChat(self.room_jid, "/code > ERROR: name '%s' not found" + name.encode('utf-8'))
 
 
 def convert_date_list_to_strings(date_list):
@@ -282,31 +290,3 @@ def make_client(bot, config, password):
     keepalive.setHandlerParent(xmppclient)
 
     return xmppclient
-
-
-def sanitize_dates(date_string_list):
-    """
-    Sanitizes a given list of date strings and returns a list of valid ones
-    and another list of invalid ones.
-    :param date_string_list: The given date string list.
-    :return: A list of valid ones and another list of invalid ones.
-    """
-    valid_args = []
-    invalid_args = []
-
-    for d in date_string_list:
-        d = d.strip().upper()
-        if len(d) == 0:
-            continue
-        if RE_DATE.match(d):
-            try:
-                year, month, day = [int(v) for v in d.split(u'-')]
-                valid_args.append(datetime.date(year, month, day))
-            except:
-                invalid_args.append(d)
-        elif d in WEEKDAYS:
-            valid_args.append(d)
-        else:
-            invalid_args.append(d)
-
-    return valid_args, invalid_args

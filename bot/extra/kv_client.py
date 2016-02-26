@@ -6,9 +6,9 @@ from twisted.web.client import getPage
 from ..util.config import get_config_name_from_env_name
 
 
-class RestKvClient(object):
+class KvClient(object):
     """
-    A client for retrieving key-values from a RESTful Key-Value service.
+    A client for retrieving a key-value file from a URL.
     """
 
     def __init__(self, bot, url, key_list, time_out=10, callback=None):
@@ -33,7 +33,6 @@ class RestKvClient(object):
         """
         Triggers a task that fetches all key-values and updates the config file.
         """
-
         # don't do anything if there is already an update in progress
         if self._update_in_progress:
             self._logger.info(u"there is already a key update process running.")
@@ -54,7 +53,6 @@ class RestKvClient(object):
         self._update_in_progress = False
 
     def _fetch_all_keys(self):
-        # TODO: check if there is an update in progress
         self._logger.info(u"start fetching all keys...")
         headers = {'Content-Type': 'application/json',
                    'Accept': 'plain/text',
@@ -101,43 +99,6 @@ class RestKvClient(object):
         # callback
         if self._callback is not None:
             reactor.callLater(0.0, self._callback, False)
-
-    def _fetch_next_key(self):
-        # fetches the next key in the remaining key list
-        self._logger.debug(u"start fetching next key: %s", self._remaining_key_list[0])
-
-        # TODO: set url
-        url = self.url.encode('utf-8')
-        headers = {'Content-Type': 'application/json',
-                   'Accept': 'plain/text',
-                   'Accept-Charset:': 'utf-8'}
-
-        d = getPage(url, method='GET', headers=headers, timeout=self.time_out)
-        d.addCallbacks(self._on_get_key_success, self._on_get_key_failure)
-        self._key_update_defer = d
-
-    def _on_get_key_success(self, data):
-        # set key-value
-        key = self._remaining_key_list[0]
-        value = data.decode('utf-8')
-        self._new_key_dict[key] = value
-
-        self._logger.debug(u"successfully got key: %s = %s", key, value)
-
-        # check if there are more keys to update
-        self._remaining_key_list = self._remaining_key_list[1:]
-        if self._remaining_key_list:
-            self._fetch_next_key()
-        else:
-            # no more keys to fetch, update the config
-            self._update_config()
-            self._clean_up_update_task_data()
-
-    def _on_get_key_failure(self, data):
-        # if we failed to retrieve any of the keys, we abort the key update
-        self._logger.error(u"failed to retrieve key '%s', abort key update.", self._remaining_key_list[0])
-        self._logger.debug(u"failure data: %s", data)
-        self._clean_up_update_task_data()
 
     def _update_config(self):
         self._logger.info(u"updating config...")

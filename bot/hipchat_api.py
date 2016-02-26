@@ -16,7 +16,7 @@ class HipChatApi(object):
     ROOM_TOPIC_URL = u"v2/room/%(room_id_or_name)s/topic"
     ROOM_HISTORY_URL = u"v2/room/%(room_id_or_name)s/history"
     ROOM_REPLY_URL = u"v2/room/%(room_id_or_name)s/reply"
-    PRIVATE_MESSAGE_URL = u"v2/user/{id_or_email}/message"
+    PRIVATE_MESSAGE_URL = u"v2/user/%(id_or_email)s/message"
 
     def __init__(self, bot, server, token):
         self._logger = logging.getLogger(self.__class__.__name__)
@@ -108,7 +108,7 @@ class HipChatApi(object):
         self._send_request(u'POST', url, payload=json.dumps(data))
 
     def send_private_message(self, id_or_email, message, notify=False, is_html=False):
-        url = self.PRIVATE_MESSAGE_URL % {u'id_or_email': id_or_email}
+        url = self.PRIVATE_MESSAGE_URL % {u'id_or_email': u'%s' % id_or_email}
         data = {u'message': cgi.escape(message) if is_html else message,
                 u'notify': notify,
                 u'message_format': u'html' if is_html else u'text'

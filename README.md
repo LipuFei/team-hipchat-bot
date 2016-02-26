@@ -64,6 +64,13 @@ MON
 # no non-available days for user3
 ```
 
+
+## Docker image
+
+You can use the script in the `docker` directory to build a docker image.
+For details, please check [README.md](docker/README.md)
+
+
 ## License
 
 This project is licensed under MIT. See [LICENSE](LICENSE).

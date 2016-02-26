@@ -4,10 +4,10 @@ import unittest
 
 from bot.util import config
 
-BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+BASE_DIR = os.path.dirname(os.path.realpath(__file__)).decode('utf-8')
 
 
-class TestConfig(unittest.TestCase):
+class ConfigTest(unittest.TestCase):
     """
     Tests for configuration code.
     """
@@ -64,6 +64,12 @@ class TestConfig(unittest.TestCase):
 
         config_parser = config.init_config(self.temp_config_file)
         config.set_default_config(config_parser, set_all=True)
+        self.assertEqual(config_parser.get(u'team', u'topic_update_time'), u'0 9 * * MON-FRI *',
+                         u"[team][topic_update_time] mismatch")
+
+        # test saving
+        config.write_config_file_utf8(config_parser, self.temp_config_file)
+        config_parser = config.init_config(self.temp_config_file)
         self.assertEqual(config_parser.get(u'team', u'topic_update_time'), u'0 9 * * MON-FRI *',
                          u"[team][topic_update_time] mismatch")
 
