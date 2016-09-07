@@ -200,7 +200,7 @@ def sanitize_dates(date_string_list):
                 valid_args.append(datetime.date(year, month, day))
             except:
                 invalid_args.append(d)
-        elif d in WEEKDAYS:
+        elif d[:3] in WEEKDAYS:
             valid_args.append(d)
         else:
             invalid_args.append(d)
