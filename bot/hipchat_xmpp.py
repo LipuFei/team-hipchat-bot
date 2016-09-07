@@ -96,7 +96,9 @@ class HipchatBot(muc.MUCClient):
                 u'!SHOW_DAYS',
                 u'!SHOW_POD',
                 u'!SHOW_NEXT_POD',
-                u'!NEXT_POD']
+                u'!NEXT_POD',
+                u'!SHOW_TOPIC_TEMPLATE',
+                u'!SET_TOPIC_TEMPLATE']
         # value error means it was a one word body
         msg = message.body
         if not msg:
@@ -136,6 +138,11 @@ Available commands (all commands start with '!'):
   !SHOW_POD           : show the current person-on-duty.
   !SHOW_NEXT_POD      : show the next person-on-duty.
   !NEXT_POD           : switch to the next person-on-duty.
+  !SHOW_TOPIC_TEMPLATE: show the topic template.
+                        "<name>" is for the person-on-duty.
+  !SET_TOPIC_TEMPLATE : set the topic template.
+                        use "<name>" for the person-on-duty.
+                        Example: Our support channel; Person-on-duty: <name>; questions about ...
 """
         self.groupChat(self.room_jid, "/code " + msg.encode('utf-8'))
 
@@ -219,21 +226,21 @@ Available commands (all commands start with '!'):
 
         self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
 
-    def cmd_show_sheriff(self, room, user_nick, message):
+    def cmd_show_pod(self, room, user_nick, message):
         msg = u"The current person-on-duty is: %s" % self.bot.sheriff_schedule.get_current_person()[1]
         self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
 
-    def cmd_show_next_sheriff(self, room, user_nick, message):
+    def cmd_show_next_pod(self, room, user_nick, message):
         msg = u"Next person-on-duty is: %s" % self.bot.sheriff_schedule.get_next_available_person()[1]
         self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
 
-    def cmd_next_sheriff(self, room, user_nick, message):
+    def cmd_next_pod(self, room, user_nick, message):
         msg = u"Switching to the next person-on-duty: %s" % self.bot.sheriff_schedule.get_next_available_person()[1]
         self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
 
         self.bot.sheriff_schedule.switch_to_next_person()
 
-    def cmd_set_sheriff(self, room, user_nick, message):
+    def cmd_set_pod(self, room, user_nick, message):
         args = message.body.decode('utf-8').split(u' ')
         if len(args) != 2:
             self.groupChat(self.room_jid, "/code > ERROR: Invalid command: " + message.body.encode('utf-8'))
@@ -243,6 +250,23 @@ Available commands (all commands start with '!'):
         current_sheriff = self.bot.sheriff_schedule.set_current_person(name)
         if current_sheriff is None:
             self.groupChat(self.room_jid, "/code > ERROR: name '%s' not found" + name.encode('utf-8'))
+
+    def cmd_show_topic_template(self, room, user_nick, message):
+        topic_string = self.bot.config.get(u'team', u'topic_update_time').encode('utf-8')
+        self.groupChat(self.room_jid, "/code > Current topic string: %s" % topic_string)
+
+    def cmd_set_topic_template(self, room, user_nick, message):
+        args = message.body.decode('utf-8').split(u' ', 1)
+        if len(args) != 2:
+            self.groupChat(self.room_jid, "/code > ERROR: missing topic string")
+            return
+
+        topic_string = args[1].strip()
+        self.bot.config.set(u'team', u'topic_update_time', topic_string)
+        msg = u"/code > Topic string changed to: %s" % topic_string
+        if u"<name>" not in topic_string:
+            msg += u"\nWARN: your topic string doesn't include <name>"
+        self.groupChat(self.room_jid, msg.encode('utf-8'))
 
 
 def convert_date_list_to_strings(date_list):
