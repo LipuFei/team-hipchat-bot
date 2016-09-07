@@ -3,6 +3,7 @@ import codecs
 import datetime
 import json
 import logging
+import os
 import time
 
 from croniter import croniter
@@ -28,8 +29,9 @@ class Schedule(object):
         # load cache file
         self.cache_file = self.config.get(u'team', u'cache_file')
         self.cache_config = ConfigParser()
-        with codecs.open(self.cache_file, 'r', 'utf-8') as f:
-            self.cache_config.readfp(f)
+        if os.path.exists(self.cache_config):
+            with codecs.open(self.cache_file, 'r', 'utf-8') as f:
+                self.cache_config.readfp(f)
 
         if not self.cache_config.has_section(u'schedule'):
             self.cache_config.add_section(u'schedule')
@@ -70,7 +72,7 @@ class Schedule(object):
     def _update_hipchat_info(self):
         current_person, person_idx = self.get_current_person()
 
-        self._logger.info(u"today's sheriff is %s, index: %s", current_person, person_idx)
+        self._logger.info(u"today's person-on-duty is %s, index: %s", current_person, person_idx)
 
         # set room topic
         room_name = self.config.get(u'team', u'room_name')
@@ -78,7 +80,7 @@ class Schedule(object):
         self.bot.hipchat_api.set_room_topic(room_name, topic)
 
         # try to get mention name
-        msg = u" >>> Today's sheriff is %s" % current_person
+        msg = u" >>> Today's person-on-duty is %s" % current_person
         data = None
         if self.bot.hipchat_db.has(current_person):
             data = json.loads(self.bot.hipchat_db.get(current_person), encoding='utf-8')
@@ -92,8 +94,8 @@ class Schedule(object):
         # also send private message if data is available
         if data is not None:
             user_id = data[u'id']
-            msg = u"Hi %(name)s, you are the sheriff of room %(room)s today." % {u'name': data[u'name'],
-                                                                                 u'room': room_name}
+            msg = u"Hi %(name)s, you are the person-on-duty of room %(room)s today." % {u'name': data[u'name'],
+                                                                                        u'room': room_name}
             msg += u"\nAll potential questions will be forwarded to you."
             self.bot.hipchat_api.send_private_message(user_id, msg)
 

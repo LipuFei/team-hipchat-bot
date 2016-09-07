@@ -3,9 +3,7 @@
 # Modified by Lipu Fei <lipu.fei815@gmail.com>
 #
 import datetime
-import json
 import logging
-import time
 
 from twisted.internet import task
 from twisted.python import log
@@ -14,7 +12,6 @@ from wokkel import muc
 from wokkel.client import XMPPClient
 from wokkel.subprotocols import XMPPHandler
 
-from .algorithm.context import is_question_msg
 from .util.daysoff_parser import sanitize_dates
 
 
@@ -93,8 +90,13 @@ class HipchatBot(muc.MUCClient):
         pass
 
     def receivedGroupChat(self, room, user, message):
-        CMDS = [u'!HELP', u'!IM_BACK', u'!IM_OFF', u'!SHOW_DAYS',
-                u'!SHOW_SHERIFF', u'!SHOW_NEXT_SHERIFF', u'!NEXT_SHERIFF']
+        CMDS = [u'!HELP',
+                u'!IM_BACK',
+                u'!IM_OFF',
+                u'!SHOW_DAYS',
+                u'!SHOW_POD',
+                u'!SHOW_NEXT_POD',
+                u'!NEXT_POD']
         # value error means it was a one word body
         msg = message.body
         if not msg:
