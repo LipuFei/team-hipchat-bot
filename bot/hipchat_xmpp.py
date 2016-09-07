@@ -119,24 +119,6 @@ class HipchatBot(muc.MUCClient):
             if user.nick in self.team_members:
                 return
 
-            # normal text, check if it's a question
-            if is_question_msg(msg):
-                # don't rely questions too often
-                current_time = time.time()
-                if self.last_question_time + self.question_rely_interval > current_time:
-                    return
-
-                # tell the sheriff to handle this question
-                sheriff_name = self.bot.sheriff_schedule.get_current_person()
-                mention_name = u""
-                if self.bot.hipchat_db.has(sheriff_name):
-                    data = json.loads(self.bot.hipchat_db.get(sheriff_name), encoding='utf-8')
-                    mention_name = u" @%s" % data[u'mention_name']
-                msg = u"""
-Hi sheriff%s, %s may have asked a question. Could you have a look?""" % (mention_name, user.nick)
-
-                self.bot.hipchat_api.send_room_notification(self.room_name, u'bot', msg, notify=True, color=u'green')
-
     def cmd_help(self, room, user_nick, message):
         msg = u"""
 Available commands (all commands start with '!'):
@@ -149,9 +131,9 @@ Available commands (all commands start with '!'):
            - Format   : yyyy-mm-dd (2016-01-31) or "mon", "tue", etc. (non-case-sensitive)
   !SHOW_DAYS [@someone] : show a list of your (or someone's) days-off.
            - @someone : (optional) if specified, i will show that person's days off instead of yours.
-  !SHOW_SHERIFF         : show the current sheriff.
-  !SHOW_NEXT_SHERIFF    : show the next sheriff.
-  !NEXT_SHERIFF         : switch to the next sheriff. (in case that the current sheriff is not correct)
+  !SHOW_POD           : show the current person-on-duty.
+  !SHOW_NEXT_POD      : show the next person-on-duty.
+  !NEXT_POD           : switch to the next person-on-duty.
 """
         self.groupChat(self.room_jid, "/code " + msg.encode('utf-8'))
 
@@ -236,15 +218,15 @@ Available commands (all commands start with '!'):
         self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
 
     def cmd_show_sheriff(self, room, user_nick, message):
-        msg = u"The current sheriff is: %s" % self.bot.sheriff_schedule.get_current_person()[1]
+        msg = u"The current person-on-duty is: %s" % self.bot.sheriff_schedule.get_current_person()[1]
         self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
 
     def cmd_show_next_sheriff(self, room, user_nick, message):
-        msg = u"Next sheriff is: %s" % self.bot.sheriff_schedule.get_next_available_person()[1]
+        msg = u"Next person-on-duty is: %s" % self.bot.sheriff_schedule.get_next_available_person()[1]
         self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
 
     def cmd_next_sheriff(self, room, user_nick, message):
-        msg = u"Switching to the next sheriff: %s" % self.bot.sheriff_schedule.get_next_available_person()[1]
+        msg = u"Switching to the next person-on-duty: %s" % self.bot.sheriff_schedule.get_next_available_person()[1]
         self.groupChat(self.room_jid, "/code > " + msg.encode('utf-8'))
 
         self.bot.sheriff_schedule.switch_to_next_person()
