@@ -29,7 +29,7 @@ class Schedule(object):
         # load cache file
         self.cache_file = self.config.get(u'team', u'cache_file')
         self.cache_config = ConfigParser()
-        if os.path.exists(self.cache_config):
+        if os.path.exists(self.cache_file):
             with codecs.open(self.cache_file, 'r', 'utf-8') as f:
                 self.cache_config.readfp(f)
 
