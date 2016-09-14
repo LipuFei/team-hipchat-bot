@@ -191,6 +191,10 @@ def sanitize_dates(date_string_list):
     invalid_args = []
 
     for d in date_string_list:
+        if isinstance(d, datetime.date):
+            valid_args.append(d)
+            continue
+
         d = d.strip().upper()
         if len(d) == 0:
             continue
